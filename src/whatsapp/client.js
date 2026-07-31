@@ -111,5 +111,9 @@ export async function sendMessage(jid, text) {
 
 export async function sendAudio(jid, buffer) {
   if (!sock) throw new Error('WhatsApp not connected');
-  return sock.sendMessage(jid, { audio: buffer, mimetype: 'audio/mp4' });
+  return sock.sendMessage(jid, {
+    audio: buffer,
+    mimetype: 'audio/ogg; codecs=opus',
+    ptt: true,
+  });
 }

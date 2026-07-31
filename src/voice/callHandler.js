@@ -18,9 +18,16 @@ export async function handleCall(sock, call) {
 
     await sock.rejectCall(call.id, callerJid);
 
-    await sock.sendMessage(callerJid, {
-      text: '📵 Não consigo atender chamadas de voz pelo WhatsApp.\n\nMas você pode continuar falando comigo por mensagem ou áudio normalmente!',
-    });
+    const greeting = await synthesizeSpeech(
+      'Não consigo atender chamadas de voz pelo WhatsApp, mas você pode falar comigo mandando um áudio. Eu vou ouvir e responder!'
+    );
+    if (greeting) {
+      await sendAudio(callerJid, greeting);
+    } else {
+      await sock.sendMessage(callerJid, {
+        text: '📵 Não consigo atender chamadas de voz pelo WhatsApp.\n\nMas você pode continuar falando comigo por mensagem ou áudio normalmente!',
+      });
+    }
 
     models.addMessage(userId, 'system', 'Tentou uma chamada de voz (rejeitada)');
     models.logCall(userId, 'incoming', 0, 'rejected');

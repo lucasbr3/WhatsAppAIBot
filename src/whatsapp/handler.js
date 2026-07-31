@@ -4,7 +4,10 @@ import { processCommand } from './commands.js';
 import { getAIResponse } from '../ai/openai.js';
 import { getMusicPlayer } from '../music/player.js';
 import config from '../config.js';
-import { getClient } from './client.js';
+import { getClient, sendAudio } from './client.js';
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import { transcribeAudio } from '../voice/stt.js';
+import { synthesizeSpeech } from '../voice/tts.js';
 
 const cooldowns = new Map();
 
@@ -28,10 +31,17 @@ export async function handleMessage(sock, msg, io) {
     const pushName = msg.pushName || 'Unknown';
     const userId = jid.replace('@s.whatsapp.net', '');
 
-    if (!text) return;
     if (isSpam(jid)) return;
 
     models.upsertUser(userId, pushName, pushName);
+
+    if (msg.message.audioMessage) {
+      await handleAudioMessage(sock, msg, jid, userId, pushName, io);
+      return;
+    }
+
+    if (!text) return;
+
     models.addMessage(userId, 'user', text);
 
     if (io) io.emit('whatsapp:message', { from: userId, name: pushName, text, timestamp: new Date() });
@@ -78,5 +88,43 @@ export async function handleMessage(sock, msg, io) {
     if (io) io.emit('whatsapp:message', { from: 'bot', name: '🤖 IA', text: aiResponse, timestamp: new Date() });
   } catch (err) {
     logger.error(`Message handler error: ${err.message}`);
+  }
+}
+
+async function handleAudioMessage(sock, msg, jid, userId, pushName, io) {
+  try {
+    if (io) io.emit('whatsapp:audio', { from: userId, name: pushName, timestamp: new Date() });
+    if (io) io.emit('whatsapp:message', { from: userId, name: pushName, text: '🎤 (áudio)', timestamp: new Date() });
+
+    const buffer = await downloadMediaMessage(msg, 'buffer', {}, { logger });
+    if (!buffer) return;
+
+    if (io) io.emit('whatsapp:processing', { userId, status: 'transcribing' });
+    const transcript = await transcribeAudio(buffer);
+    if (!transcript) {
+      await sock.sendMessage(jid, { text: '🎤 Não consegui entender o áudio. Tente novamente.' });
+      return;
+    }
+
+    logger.info(`[VOICE] ${userId}: ${transcript}`);
+    models.addMessage(userId, 'user', `[ÁUDIO] ${transcript}`);
+
+    const aiResponse = await getAIResponse(userId, transcript);
+    models.addMessage(userId, 'assistant', aiResponse);
+
+    const audioResponse = await synthesizeSpeech(aiResponse);
+    if (audioResponse) {
+      await sendAudio(jid, audioResponse);
+    } else {
+      await sock.sendMessage(jid, { text: aiResponse });
+    }
+
+    if (io) io.emit('whatsapp:message', { from: 'bot', name: '🤖 IA', text: aiResponse, timestamp: new Date() });
+    if (io) io.emit('whatsapp:audio', { from: 'bot', userId, timestamp: new Date() });
+  } catch (err) {
+    logger.error(`Audio handler error: ${err.message}`);
+    try {
+      await sock.sendMessage(jid, { text: 'Erro ao processar o áudio.' });
+    } catch {}
   }
 }
