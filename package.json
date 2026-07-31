@@ -1,0 +1,33 @@
+{
+  "name": "whatsapp-ai-bot",
+  "version": "1.0.0",
+  "description": "WhatsApp AI Bot with voice calls, music, and web dashboard",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "frontend:build": "cd frontend && npm run build",
+    "setup": "node src/database/migrations.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.0",
+    "express": "^4.18.2",
+    "socket.io": "^4.7.4",
+    "better-sqlite3": "^11.0.0",
+    "openai": "^4.47.0",
+    "node-cron": "^3.0.3",
+    "dotenv": "^16.4.5",
+    "uuid": "^9.0.1",
+    "winston": "^3.12.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "express-rate-limit": "^7.2.0",
+    "cors": "^2.8.5",
+    "p-limit": "^5.0.0",
+    "qrcode": "^1.5.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
