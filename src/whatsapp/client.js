@@ -15,6 +15,7 @@ const sessionDir = path.resolve(__dirname, '..', '..', config.whatsapp.sessionPa
 
 let sock = null;
 let currentIo = null;
+let userDisconnected = false;
 
 export function getClient() {
   return sock;
@@ -60,6 +61,11 @@ export async function startClient(io) {
     if (connection === 'close') {
       const reason = lastDisconnect?.error?.output?.statusCode;
       if (io) io.to('authenticated').emit('status:update', { whatsappStatus: 'disconnected' });
+      if (userDisconnected) {
+        userDisconnected = false;
+        logger.info('Manual disconnect, skipping auto-reconnect');
+        return;
+      }
       logger.warn(`WhatsApp disconnected, reason: ${reason}. Reconnecting...`);
       setTimeout(() => startClient(io), 5000);
     }
@@ -86,15 +92,16 @@ export async function startClient(io) {
 }
 
 export async function disconnectClient() {
+  userDisconnected = true;
   if (sock) {
-    try { sock.logout(); } catch {}
+    try { await sock.logout(); } catch {}
     try { sock.ws?.close(); } catch {}
     try { sock.end?.(); } catch {}
     sock = null;
   }
   try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
   logger.info('WhatsApp disconnected and session cleared');
-  if (currentIo) setTimeout(() => startClient(currentIo), 1000);
+  if (currentIo) startClient(currentIo);
 }
 
 export async function sendMessage(jid, text) {
