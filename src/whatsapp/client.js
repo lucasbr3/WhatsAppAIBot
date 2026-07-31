@@ -61,16 +61,7 @@ export async function startClient(io) {
       logger.warn(`WhatsApp disconnected, reason: ${reason}. Reconnecting...`);
       setTimeout(() => startClient(io), 5000);
     }
-  }); else {
-    sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
-      if (connection === 'open') logger.info(`WhatsApp connected: ${sock.user?.id}`);
-      if (connection === 'close') {
-        const reason = lastDisconnect?.error?.output?.statusCode;
-        logger.warn(`WhatsApp disconnected, reason: ${reason}. Reconnecting...`);
-        setTimeout(() => startClient(io), 5000);
-      }
-    });
-  }
+  });
 
   sock.ev.on('creds.update', saveCreds);
 
