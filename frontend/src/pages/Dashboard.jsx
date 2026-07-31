@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Users, MessageSquare, Phone, Music, Clock, Activity } from 'lucide-react';
+import { Smartphone, Users, MessageSquare, Phone, Music, Clock, Activity, ScrollText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import StatusCard from '../components/StatusCard';
 import { api, getSocket } from '../api/client';
