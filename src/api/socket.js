@@ -63,7 +63,7 @@ function buildStatus(sock) {
   const player = getMusicPlayer();
   const pStatus = player.getStatus();
   return {
-    whatsappStatus: sock ? 'connected' : 'disconnected',
+    whatsappStatus: sock?.user ? 'connected' : 'disconnected',
     whatsappUser: sock?.user?.name || sock?.user?.id || '',
     qr: sock?.qr || null,
     uptime: formatUptime(process.uptime()),
