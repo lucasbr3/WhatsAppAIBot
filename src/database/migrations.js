@@ -22,7 +22,8 @@ export function runMigrations() {
       first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
       message_count INTEGER DEFAULT 0,
-      blocked INTEGER DEFAULT 0
+      blocked INTEGER DEFAULT 0,
+      is_admin INTEGER DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS music_queue (
@@ -43,7 +44,10 @@ export function runMigrations() {
       duration INTEGER DEFAULT 0,
       status TEXT DEFAULT 'completed',
       started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      ended_at DATETIME DEFAULT NULL
+      ended_at DATETIME DEFAULT NULL,
+      transcription TEXT,
+      ai_response TEXT,
+      audio_url TEXT
     );
 
     CREATE TABLE IF NOT EXISTS logs (
@@ -58,6 +62,11 @@ export function runMigrations() {
       value TEXT NOT NULL
     );
   `);
+
+  try { db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE call_logs ADD COLUMN transcription TEXT'); } catch {}
+  try { db.exec('ALTER TABLE call_logs ADD COLUMN ai_response TEXT'); } catch {}
+  try { db.exec('ALTER TABLE call_logs ADD COLUMN audio_url TEXT'); } catch {}
 
   logger.info('Migrations completed');
 }

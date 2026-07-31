@@ -25,7 +25,7 @@ export function createServer(whatsappClient) {
   const dashboardPath = path.join(__dirname, '..', 'dashboard');
   app.use(express.static(dashboardPath));
 
-  setupRoutes(app, whatsappClient);
+  setupRoutes(app, whatsappClient, io);
   setupSocket(io, whatsappClient);
 
   app.get('*', (req, res) => {

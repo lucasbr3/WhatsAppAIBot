@@ -16,13 +16,19 @@ export default {
   getAllUsers() {
     return db.prepare('SELECT * FROM users ORDER BY last_seen DESC').all();
   },
+  setUserBlock(id, blocked) {
+    db.prepare('UPDATE users SET blocked = ? WHERE id = ?').run(blocked ? 1 : 0, id);
+  },
 
   // === Conversations ===
   addMessage(userId, role, content) {
     db.prepare('INSERT INTO conversations (user_id, role, content) VALUES (?, ?, ?)').run(userId, role, content);
   },
   getHistory(userId, limit = 20) {
-    return db.prepare('SELECT role, content FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?').all(userId, limit).reverse();
+    return db.prepare('SELECT role, content, timestamp FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT ?').all(userId, limit).reverse();
+  },
+  getLastMessage(userId) {
+    return db.prepare('SELECT content, timestamp FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1').get(userId);
   },
   clearHistory(userId) {
     db.prepare('DELETE FROM conversations WHERE user_id = ?').run(userId);
@@ -43,8 +49,8 @@ export default {
   },
 
   // === Call Logs ===
-  logCall(userId, direction, duration, status) {
-    db.prepare('INSERT INTO call_logs (user_id, direction, duration, status) VALUES (?, ?, ?, ?)').run(userId, direction, duration, status);
+  logCall(userId, direction, duration, status, transcription, aiResponse, audioUrl) {
+    db.prepare('INSERT INTO call_logs (user_id, direction, duration, status, transcription, ai_response, audio_url) VALUES (?, ?, ?, ?, ?, ?, ?)').run(userId, direction, duration, status, transcription || null, aiResponse || null, audioUrl || null);
   },
   getCallLogs(limit = 50) {
     return db.prepare('SELECT * FROM call_logs ORDER BY started_at DESC LIMIT ?').all(limit);

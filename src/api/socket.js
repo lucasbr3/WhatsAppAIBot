@@ -12,10 +12,7 @@ export function setupSocket(io, sock) {
         jwt.verify(token, config.auth.jwtSecret);
         socket.join('authenticated');
         socket.emit('auth:success');
-        socket.emit('status:update', {
-          whatsapp: sock ? 'connected' : 'disconnected',
-          player: getMusicPlayer().getStatus(),
-        });
+        emitStatus(socket, sock);
       } catch {
         socket.emit('auth:error', 'Invalid token');
       }
@@ -23,17 +20,29 @@ export function setupSocket(io, sock) {
 
     socket.on('player:control', async (data) => {
       if (!socket.rooms.has('authenticated')) return;
-      const result = await getMusicPlayer().control(data.action, data.value);
-      io.to('authenticated').emit('player:status', getMusicPlayer().getStatus());
+      const player = getMusicPlayer();
+      await player.control(data.action, data.value);
+      const status = player.getStatus();
+      io.to('authenticated').emit('player_state', status);
+      io.to('authenticated').emit('queue_update', status.queue || []);
     });
 
     socket.on('send:message', async (data) => {
       if (!socket.rooms.has('authenticated') || !sock) return;
       try {
         await sock.sendMessage(data.jid, { text: data.text });
+        socket.emit('send:success', { jid: data.jid, text: data.text });
       } catch (err) {
         socket.emit('send:error', err.message);
       }
+    });
+
+    socket.on('logs:subscribe', () => {
+      socket.join('logs');
+    });
+
+    socket.on('logs:unsubscribe', () => {
+      socket.leave('logs');
     });
 
     socket.on('disconnect', () => {
@@ -41,12 +50,60 @@ export function setupSocket(io, sock) {
     });
   });
 
-  setInterval(() => {
-    io.to('authenticated').emit('status:update', {
-      whatsapp: sock ? 'connected' : 'disconnected',
-      player: getMusicPlayer().getStatus(),
-      uptime: process.uptime(),
-      usersCount: 0,
-    });
+  const statusInterval = setInterval(() => {
+    io.to('authenticated').emit('status', buildStatus(sock));
   }, 5000);
+
+  return function cleanup() {
+    clearInterval(statusInterval);
+  };
+}
+
+export function emitStatus(ioOrSocket, sock) {
+  const data = buildStatus(sock);
+  if (ioOrSocket?.emit) {
+    ioOrSocket.emit('status', data);
+  } else {
+    ioOrSocket?.to?.('authenticated')?.emit?.('status', data);
+  }
+}
+
+export function emitLog(io, level, message) {
+  const entry = {
+    time: new Date().toLocaleTimeString(),
+    level,
+    message,
+  };
+  io.to('logs').emit('log', entry);
+  io.to('authenticated').emit('log', entry);
+}
+
+function buildStatus(sock) {
+  const player = getMusicPlayer();
+  const pStatus = player.getStatus();
+  return {
+    whatsappStatus: sock ? 'connected' : 'disconnected',
+    whatsappUser: sock?.user?.name || sock?.user?.id || '',
+    qr: sock?.qr || null,
+    uptime: formatUptime(process.uptime()),
+    users: 0,
+    messages: 0,
+    calls: 0,
+    currentSong: pStatus?.current?.title || null,
+    queueSize: pStatus?.queue?.length || 0,
+    aiEnabled: config.ai.enabled !== false,
+  };
+}
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0) parts.push(`${h}h`);
+  if (m > 0) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
 }

@@ -33,6 +33,7 @@ export default {
     jwtSecret: process.env.JWT_SECRET || 'dev-secret',
     adminUser: process.env.ADMIN_USER || 'admin',
     adminPassword: process.env.ADMIN_PASSWORD || 'admin',
+    disabled: process.env.AUTH_DISABLED === 'true',
   },
   music: {
     source: process.env.MUSIC_SOURCE || 'youtube',
