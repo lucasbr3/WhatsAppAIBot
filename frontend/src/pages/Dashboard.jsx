@@ -1,28 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Smartphone, Users, MessageSquare, Phone, Music, Clock, Activity, ScrollText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import StatusCard from '../components/StatusCard';
 import { api, getSocket } from '../api/client';
+import QRCode from 'qrcode';
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [logs, setLogs] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const qrContainerRef = useRef(null);
 
   useEffect(() => {
     fetchStatus();
     const socket = getSocket();
-    socket.on('status', s => { setData(prev => ({ ...prev, ...s })); });
+    socket.on('status', s => { setData(prev => ({ ...prev, ...s })); generateQr(s.qr); });
     socket.on('log', entry => {
       setLogs(prev => [entry, ...prev].slice(0, 100));
     });
     return () => { socket.off('status'); socket.off('log'); };
   }, []);
 
+  useEffect(() => {
+    if (data?.qr) generateQr(data.qr);
+  }, [data?.qr]);
+
+  async function generateQr(text) {
+    if (!text) { setQrDataUrl(null); return; }
+    try {
+      const url = await QRCode.toDataURL(text, { width: 300, margin: 2, color: { dark: '#000', light: '#fff' } });
+      setQrDataUrl(url);
+    } catch {}
+  }
+
   async function fetchStatus() {
     try {
       const res = await api('/status');
       setData(res);
+      if (res.qr) generateQr(res.qr);
     } catch {}
   }
 
@@ -42,13 +58,21 @@ export default function Dashboard() {
       <h1 style={{ marginBottom: 8 }}>Dashboard</h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '.9rem' }}>Visão geral do WhatsApp AI Bot</p>
 
-      {data?.qr && !isOnline && (
+      {data && !isOnline && (
         <div className="section">
           <div className="qr-container">
             <h3>Conectar WhatsApp</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '.85rem' }}>Escaneie o QR Code abaixo com o WhatsApp</p>
-            <div className="qr-code" dangerouslySetInnerHTML={{ __html: data.qr }} />
-            <p style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>O código expira em 60 segundos</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '.85rem' }}>Escaneie o QR Code abaixo com o WhatsApp Web</p>
+            {qrDataUrl ? (
+              <div className="qr-code">
+                <img src={qrDataUrl} alt="QR Code WhatsApp" />
+              </div>
+            ) : (
+              <div className="qr-code" style={{ width: 200, height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#999', fontSize: '.8rem' }}>
+                {data?.whatsappStatus === 'connecting' ? 'Conectando...' : 'Aguardando QR Code...'}
+              </div>
+            )}
+            <p style={{ color: 'var(--text-muted)', fontSize: '.8rem' }}>O código atualiza automaticamente a cada 60 segundos</p>
           </div>
         </div>
       )}
