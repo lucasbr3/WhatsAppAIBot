@@ -1,53 +1,10 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 import config from '../config.js';
 import models from '../database/models.js';
-import logger from '../logger.js';
 import { getMusicPlayer } from '../music/player.js';
 import { getClient, disconnectClient } from '../whatsapp/client.js';
 
-function generateToken() {
-  return jwt.sign({ user: config.auth.adminUser }, config.auth.jwtSecret, { expiresIn: '24h' });
-}
-
-function authOptional(req, res, next) {
-  if (config.auth.disabled) return next();
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (token) {
-    try { jwt.verify(token, config.auth.jwtSecret); req.authenticated = true; } catch {}
-  }
-  next();
-}
-
-function authRequired(req, res, next) {
-  if (config.auth.disabled) return next();
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return res.status(401).json({ error: 'Token required' });
-  try {
-    jwt.verify(token, config.auth.jwtSecret);
-    req.authenticated = true;
-    next();
-  } catch {
-    res.status(401).json({ error: 'Invalid token' });
-  }
-}
-
 export function setupRoutes(app, _sock, io) {
-  app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    if (config.auth.disabled) {
-      const token = generateToken();
-      return res.json({ token });
-    }
-    if (username === config.auth.adminUser && password === config.auth.adminPassword) {
-      const token = generateToken();
-      res.json({ token });
-    } else {
-      res.status(401).json({ error: 'Invalid credentials' });
-    }
-  });
-
-  app.get('/api/status', authOptional, (req, res) => {
+  app.get('/api/status', (req, res) => {
     const s = getClient();
     const player = getMusicPlayer();
     const pStatus = player.getStatus();
@@ -68,7 +25,7 @@ export function setupRoutes(app, _sock, io) {
     });
   });
 
-  app.get('/api/users', authOptional, (req, res) => {
+  app.get('/api/users', (req, res) => {
     const users = models.getAllUsers().map(u => ({
       jid: u.id,
       name: u.name || u.push_name || '',
@@ -80,13 +37,13 @@ export function setupRoutes(app, _sock, io) {
     res.json(users);
   });
 
-  app.post('/api/users/block', authRequired, (req, res) => {
+  app.post('/api/users/block', (req, res) => {
     const { jid, blocked } = req.body;
     models.setUserBlock(jid, blocked);
     res.json({ success: true });
   });
 
-  app.get('/api/conversations', authOptional, (req, res) => {
+  app.get('/api/conversations', (req, res) => {
     const users = models.getAllUsers();
     const convs = users.map(u => {
       const last = models.getLastMessage(u.id);
@@ -101,7 +58,7 @@ export function setupRoutes(app, _sock, io) {
     res.json(convs);
   });
 
-  app.get('/api/conversations/:jid', authOptional, (req, res) => {
+  app.get('/api/conversations/:jid', (req, res) => {
     const msgs = models.getHistory(req.params.jid, 100).map(m => ({
       from: m.role === 'assistant' ? 'bot' : m.role === 'user' ? 'them' : 'me',
       text: m.content,
@@ -110,12 +67,12 @@ export function setupRoutes(app, _sock, io) {
     res.json(msgs);
   });
 
-  app.delete('/api/conversations/:jid', authRequired, (req, res) => {
+  app.delete('/api/conversations/:jid', (req, res) => {
     models.clearHistory(req.params.jid);
     res.json({ success: true });
   });
 
-  app.post('/api/send', authRequired, async (req, res) => {
+  app.post('/api/send', async (req, res) => {
     const s = getClient();
     const { jid, text } = req.body;
     if (!s) return res.status(503).json({ error: 'WhatsApp not connected' });
@@ -128,7 +85,7 @@ export function setupRoutes(app, _sock, io) {
     }
   });
 
-  app.get('/api/calls', authOptional, (req, res) => {
+  app.get('/api/calls', (req, res) => {
     const calls = models.getCallLogs(100).map(c => ({
       id: c.id,
       jid: c.user_id,
@@ -144,7 +101,7 @@ export function setupRoutes(app, _sock, io) {
     res.json(calls);
   });
 
-  app.get('/api/player', authOptional, (req, res) => {
+  app.get('/api/player', (req, res) => {
     const player = getMusicPlayer();
     const status = player.getStatus();
     res.json({
@@ -155,7 +112,7 @@ export function setupRoutes(app, _sock, io) {
     });
   });
 
-  app.post('/api/player/control', authRequired, async (req, res) => {
+  app.post('/api/player/control', async (req, res) => {
     const { action } = req.body;
     const player = getMusicPlayer();
     await player.control(action);
@@ -164,7 +121,7 @@ export function setupRoutes(app, _sock, io) {
     res.json(status);
   });
 
-  app.post('/api/player/volume', authRequired, (req, res) => {
+  app.post('/api/player/volume', (req, res) => {
     const { volume } = req.body;
     const player = getMusicPlayer();
     if (player.setVolume) player.setVolume(volume);
@@ -173,7 +130,7 @@ export function setupRoutes(app, _sock, io) {
     res.json({ volume });
   });
 
-  app.delete('/api/player/queue', authRequired, (req, res) => {
+  app.delete('/api/player/queue', (req, res) => {
     const { index } = req.body;
     const player = getMusicPlayer();
     if (player.removeFromQueue) player.removeFromQueue(index);
@@ -182,7 +139,7 @@ export function setupRoutes(app, _sock, io) {
     res.json({ success: true });
   });
 
-  app.get('/api/ai/config', authOptional, (req, res) => {
+  app.get('/api/ai/config', (req, res) => {
     res.json({
       enabled: config.ai.enabled !== false,
       model: config.ai.model || 'gpt-4o-mini',
@@ -191,7 +148,7 @@ export function setupRoutes(app, _sock, io) {
     });
   });
 
-  app.put('/api/ai/config', authRequired, (req, res) => {
+  app.put('/api/ai/config', (req, res) => {
     const { enabled, model, personality, maxResponses } = req.body;
     if (enabled !== undefined) { config.ai.enabled = enabled; models.setSetting('ai_enabled', enabled ? 'true' : 'false'); }
     if (model) { config.ai.model = model; models.setSetting('ai_model', model); }
@@ -200,7 +157,7 @@ export function setupRoutes(app, _sock, io) {
     res.json({ success: true });
   });
 
-  app.get('/api/ai/history', authOptional, (req, res) => {
+  app.get('/api/ai/history', (req, res) => {
     const users = models.getAllUsers();
     const history = [];
     for (const u of users.slice(0, 20)) {
@@ -217,15 +174,11 @@ export function setupRoutes(app, _sock, io) {
     res.json(history.reverse().slice(0, 100));
   });
 
-  app.get('/api/logs', authOptional, (req, res) => {
+  app.get('/api/logs', (req, res) => {
     res.json(models.getLogs(200));
   });
 
-  app.get('/api/refresh-token', authRequired, (req, res) => {
-    res.json({ token: generateToken() });
-  });
-
-  app.post('/api/whatsapp/disconnect', authRequired, async (req, res) => {
+  app.post('/api/whatsapp/disconnect', async (req, res) => {
     try {
       await disconnectClient();
       if (io) io.to('authenticated').emit('status:update', { whatsappStatus: 'disconnected', qr: null });

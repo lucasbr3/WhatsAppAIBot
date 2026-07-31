@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { getSocket } from './api/client';
 import Layout from './components/Layout';
-import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Conversations from './pages/Conversations';
 import AIControl from './pages/AIControl';
@@ -12,20 +11,7 @@ import Users from './pages/Users';
 import Logs from './pages/Logs';
 
 export default function App() {
-  const location = useLocation();
-  const isLogin = location.pathname === '/login';
-
-  useEffect(() => {
-    getSocket();
-  }, []);
-
-  if (isLogin) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-      </Routes>
-    );
-  }
+  useEffect(() => { getSocket(); }, []);
 
   return (
     <Layout>

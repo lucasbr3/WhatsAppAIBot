@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, MessageSquare, Brain, Music, Phone, Users, ScrollText, LogOut, Menu, X } from 'lucide-react';
-import { logout } from '../api/client';
+import { LayoutDashboard, MessageSquare, Brain, Music, Phone, Users, ScrollText, Menu } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -42,11 +41,6 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <button onClick={logout}>
-            <LogOut size={18} /> Sair
-          </button>
-        </div>
       </aside>
       <main className="app-content">{children}</main>
     </>

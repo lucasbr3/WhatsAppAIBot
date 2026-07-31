@@ -1,26 +1,14 @@
-import jwt from 'jsonwebtoken';
-import config from '../config.js';
 import logger from '../logger.js';
 import { getMusicPlayer } from '../music/player.js';
 import { getClient } from '../whatsapp/client.js';
- 
+
 export function setupSocket(io, _sock) {
   io.on('connection', (socket) => {
     logger.info(`Dashboard client connected: ${socket.id}`);
-
-    socket.on('auth', (token) => {
-      try {
-        jwt.verify(token, config.auth.jwtSecret);
-        socket.join('authenticated');
-        socket.emit('auth:success');
-        emitStatus(socket, getClient());
-      } catch {
-        socket.emit('auth:error', 'Invalid token');
-      }
-    });
+    socket.join('authenticated');
+    emitStatus(socket, getClient());
 
     socket.on('player:control', async (data) => {
-      if (!socket.rooms.has('authenticated')) return;
       const player = getMusicPlayer();
       await player.control(data.action, data.value);
       const status = player.getStatus();
@@ -30,7 +18,7 @@ export function setupSocket(io, _sock) {
 
     socket.on('send:message', async (data) => {
       const s = getClient();
-      if (!socket.rooms.has('authenticated') || !s) return;
+      if (!s) return;
       try {
         await s.sendMessage(data.jid, { text: data.text });
         socket.emit('send:success', { jid: data.jid, text: data.text });
@@ -39,26 +27,17 @@ export function setupSocket(io, _sock) {
       }
     });
 
-    socket.on('logs:subscribe', () => {
-      socket.join('logs');
-    });
-
-    socket.on('logs:unsubscribe', () => {
-      socket.leave('logs');
-    });
+    socket.on('logs:subscribe', () => socket.join('logs'));
+    socket.on('logs:unsubscribe', () => socket.leave('logs'));
 
     socket.on('disconnect', () => {
       logger.info(`Dashboard client disconnected: ${socket.id}`);
     });
   });
 
-  const statusInterval = setInterval(() => {
+  setInterval(() => {
     io.to('authenticated').emit('status', buildStatus(getClient()));
   }, 5000);
-
-  return function cleanup() {
-    clearInterval(statusInterval);
-  };
 }
 
 export function emitStatus(ioOrSocket, sock) {
@@ -93,7 +72,7 @@ function buildStatus(sock) {
     calls: 0,
     currentSong: pStatus?.current?.title || null,
     queueSize: pStatus?.queue?.length || 0,
-    aiEnabled: config.ai.enabled !== false,
+    aiEnabled: true,
   };
 }
 
