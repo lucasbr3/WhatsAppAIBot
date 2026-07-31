@@ -13,5 +13,6 @@ export default defineConfig({
   build: {
     outDir: '../src/dashboard',
     emptyOutDir: true,
+    crossOrigin: false,
   },
 });
