@@ -14,6 +14,7 @@ const __dirname = path.dirname(__filename);
 const sessionDir = path.resolve(__dirname, '..', '..', config.whatsapp.sessionPath);
 
 let sock = null;
+let currentIo = null;
 
 export function getClient() {
   return sock;
@@ -29,6 +30,7 @@ export function getStatus() {
 }
 
 export async function startClient(io) {
+  currentIo = io;
   const { version } = await fetchLatestBaileysVersion();
   logger.info(`Baileys version: ${version.join('.')}`);
 
@@ -81,6 +83,18 @@ export async function startClient(io) {
   });
 
   return sock;
+}
+
+export async function disconnectClient() {
+  if (sock) {
+    try { sock.logout(); } catch {}
+    try { sock.ws?.close(); } catch {}
+    try { sock.end?.(); } catch {}
+    sock = null;
+  }
+  try { fs.rmSync(sessionDir, { recursive: true, force: true }); } catch {}
+  logger.info('WhatsApp disconnected and session cleared');
+  if (currentIo) setTimeout(() => startClient(currentIo), 1000);
 }
 
 export async function sendMessage(jid, text) {

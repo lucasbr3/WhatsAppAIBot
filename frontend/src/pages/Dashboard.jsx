@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Smartphone, Users, MessageSquare, Phone, Music, Clock, Activity, ScrollText } from 'lucide-react';
+import { Smartphone, Users, MessageSquare, Phone, Music, Clock, Activity, ScrollText, LogOut } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import StatusCard from '../components/StatusCard';
 import { api, getSocket } from '../api/client';
@@ -42,6 +42,17 @@ export default function Dashboard() {
     } catch {}
   }
 
+  async function disconnectWhatsApp() {
+    if (!confirm('Tem certeza? O WhatsApp será desconectado e um novo QR Code será gerado.')) return;
+    try {
+      await api('/whatsapp/disconnect', { method: 'POST' });
+      setData(prev => ({ ...prev, whatsappStatus: 'disconnected', qr: null }));
+      setQrDataUrl(null);
+    } catch (err) {
+      alert('Erro ao desconectar: ' + err.message);
+    }
+  }
+
   const isOnline = data?.whatsappStatus === 'connected' || data?.whatsappStatus === 'online';
 
   const stats = [
@@ -55,8 +66,17 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 8 }}>Dashboard</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '.9rem' }}>Visão geral do WhatsApp AI Bot</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ margin: 0 }}>Dashboard</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '.9rem', marginTop: 4 }}>Visão geral do WhatsApp AI Bot</p>
+        </div>
+        {isOnline && (
+          <button className="btn btn-ghost btn-sm" onClick={disconnectWhatsApp} style={{ color: 'var(--red)' }}>
+            <LogOut size={16} /> Desconectar WhatsApp
+          </button>
+        )}
+      </div>
 
       {data && !isOnline && (
         <div className="section">

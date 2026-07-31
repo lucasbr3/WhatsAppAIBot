@@ -4,7 +4,7 @@ import config from '../config.js';
 import models from '../database/models.js';
 import logger from '../logger.js';
 import { getMusicPlayer } from '../music/player.js';
-import { getClient } from '../whatsapp/client.js';
+import { getClient, disconnectClient } from '../whatsapp/client.js';
 
 function generateToken() {
   return jwt.sign({ user: config.auth.adminUser }, config.auth.jwtSecret, { expiresIn: '24h' });
@@ -223,6 +223,16 @@ export function setupRoutes(app, _sock, io) {
 
   app.get('/api/refresh-token', authRequired, (req, res) => {
     res.json({ token: generateToken() });
+  });
+
+  app.post('/api/whatsapp/disconnect', authRequired, async (req, res) => {
+    try {
+      await disconnectClient();
+      if (io) io.to('authenticated').emit('status:update', { whatsappStatus: 'disconnected', qr: null });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 }
 
