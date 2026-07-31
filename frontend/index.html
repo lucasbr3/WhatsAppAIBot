@@ -7,7 +7,10 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='80'>🤖</text></svg>" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#9aa0b0;font-family:sans-serif;font-size:14px">Carregando...</div>
+    </div>
+    <script>window.onerror=function(m,s,l,c,e){var d=document.getElementById('root');d.innerHTML='<div style="padding:40px;color:#ef4444;font-family:sans-serif"><h2>Erro no Dashboard</h2><pre style="margin-top:16px;padding:12px;background:#1a1d27;border-radius:6px;overflow:auto;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-all">'+m+'\\n\\n'+(e&&e.stack||'')+'</pre></div>'}</script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
