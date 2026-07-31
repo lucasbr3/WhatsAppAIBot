@@ -22,8 +22,18 @@ function authMiddleware(req, res, next) {
 }
 
 export function setupRoutes(app, sock, io) {
+  app.post('/api/public-login', (req, res) => {
+    if (!config.auth.disabled) return res.status(403).json({ error: 'Public login disabled' });
+    const token = generateToken();
+    res.json({ token });
+  });
+
   app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
+    if (config.auth.disabled) {
+      const token = generateToken();
+      return res.json({ token });
+    }
     if (username === config.auth.adminUser && password === config.auth.adminPassword) {
       const token = generateToken();
       res.json({ token });
