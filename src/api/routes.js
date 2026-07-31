@@ -4,6 +4,7 @@ import config from '../config.js';
 import models from '../database/models.js';
 import logger from '../logger.js';
 import { getMusicPlayer } from '../music/player.js';
+import { getClient } from '../whatsapp/client.js';
 
 function generateToken() {
   return jwt.sign({ user: config.auth.adminUser }, config.auth.jwtSecret, { expiresIn: '24h' });
@@ -31,7 +32,7 @@ function authRequired(req, res, next) {
   }
 }
 
-export function setupRoutes(app, sock, io) {
+export function setupRoutes(app, _sock, io) {
   app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (config.auth.disabled) {
@@ -47,15 +48,16 @@ export function setupRoutes(app, sock, io) {
   });
 
   app.get('/api/status', authOptional, (req, res) => {
+    const s = getClient();
     const player = getMusicPlayer();
     const pStatus = player.getStatus();
     const allUsers = models.getAllUsers();
     const msgCount = allUsers.reduce((acc, u) => acc + (u.message_count || 0), 0);
     const calls = models.getCallLogs(999);
     res.json({
-      whatsappStatus: sock ? 'connected' : 'disconnected',
-      whatsappUser: sock?.user?.name || sock?.user?.id || '',
-      qr: sock?.qr || null,
+      whatsappStatus: s ? 'connected' : 'disconnected',
+      whatsappUser: s?.user?.name || s?.user?.id || '',
+      qr: s?.qr || null,
       uptime: formatUptime(process.uptime()),
       users: allUsers.length,
       messages: msgCount,
@@ -114,10 +116,11 @@ export function setupRoutes(app, sock, io) {
   });
 
   app.post('/api/send', authRequired, async (req, res) => {
+    const s = getClient();
     const { jid, text } = req.body;
-    if (!sock) return res.status(503).json({ error: 'WhatsApp not connected' });
+    if (!s) return res.status(503).json({ error: 'WhatsApp not connected' });
     try {
-      await sock.sendMessage(jid, { text });
+      await s.sendMessage(jid, { text });
       models.addMessage(jid, 'user', text);
       res.json({ success: true });
     } catch (err) {

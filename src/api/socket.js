@@ -2,8 +2,9 @@ import jwt from 'jsonwebtoken';
 import config from '../config.js';
 import logger from '../logger.js';
 import { getMusicPlayer } from '../music/player.js';
-
-export function setupSocket(io, sock) {
+import { getClient } from '../whatsapp/client.js';
+ 
+export function setupSocket(io, _sock) {
   io.on('connection', (socket) => {
     logger.info(`Dashboard client connected: ${socket.id}`);
 
@@ -12,7 +13,7 @@ export function setupSocket(io, sock) {
         jwt.verify(token, config.auth.jwtSecret);
         socket.join('authenticated');
         socket.emit('auth:success');
-        emitStatus(socket, sock);
+        emitStatus(socket, getClient());
       } catch {
         socket.emit('auth:error', 'Invalid token');
       }
@@ -28,9 +29,10 @@ export function setupSocket(io, sock) {
     });
 
     socket.on('send:message', async (data) => {
-      if (!socket.rooms.has('authenticated') || !sock) return;
+      const s = getClient();
+      if (!socket.rooms.has('authenticated') || !s) return;
       try {
-        await sock.sendMessage(data.jid, { text: data.text });
+        await s.sendMessage(data.jid, { text: data.text });
         socket.emit('send:success', { jid: data.jid, text: data.text });
       } catch (err) {
         socket.emit('send:error', err.message);
@@ -51,7 +53,7 @@ export function setupSocket(io, sock) {
   });
 
   const statusInterval = setInterval(() => {
-    io.to('authenticated').emit('status', buildStatus(sock));
+    io.to('authenticated').emit('status', buildStatus(getClient()));
   }, 5000);
 
   return function cleanup() {
@@ -60,7 +62,7 @@ export function setupSocket(io, sock) {
 }
 
 export function emitStatus(ioOrSocket, sock) {
-  const data = buildStatus(sock);
+  const data = buildStatus(sock || getClient());
   if (ioOrSocket?.emit) {
     ioOrSocket.emit('status', data);
   } else {
