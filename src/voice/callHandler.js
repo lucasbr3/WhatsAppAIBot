@@ -11,26 +11,22 @@ export async function handleCall(sock, call) {
   try {
     const callerJid = call.from;
     const userId = callerJid.replace('@s.whatsapp.net', '');
-    logger.info(`Incoming call from ${userId}`);
+    logger.info(`Incoming call from ${userId}, status: ${call.status}`);
 
     const callId = call.id;
-    activeCalls.set(callId, { userId, status: 'answering' });
+    activeCalls.set(callId, { userId, status: 'rejecting' });
+
+    await sock.rejectCall(call.id, callerJid);
 
     await sock.sendMessage(callerJid, {
-      text: '📞 Chamada recebida! Estou atendendo... Posso ouvir você, fale após o sinal.',
+      text: '📵 Não consigo atender chamadas de voz pelo WhatsApp.\n\nMas você pode continuar falando comigo por mensagem ou áudio normalmente!',
     });
 
-    models.addMessage(userId, 'system', 'Iniciou uma chamada de voz');
-    models.logCall(userId, 'incoming', 0, 'connected');
+    models.addMessage(userId, 'system', 'Tentou uma chamada de voz (rejeitada)');
+    models.logCall(userId, 'incoming', 0, 'rejected');
+    activeCalls.delete(callId);
 
-    setTimeout(() => {
-      sock.sendMessage(callerJid, {
-        text: '🎙️ Chamada de voz não implementada totalmente neste ambiente.\n\nMas você pode continuar conversando comigo por texto normalmente! Me mande um áudio ou mensagem.',
-      }).catch(() => {});
-      activeCalls.delete(callId);
-    }, 3000);
-
-    return { answered: true, callId };
+    return { answered: false, rejected: true, callId };
   } catch (err) {
     logger.error(`Call handler error: ${err.message}`);
     return { answered: false };
