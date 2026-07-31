@@ -9,12 +9,22 @@ function generateToken() {
   return jwt.sign({ user: config.auth.adminUser }, config.auth.jwtSecret, { expiresIn: '24h' });
 }
 
-function authMiddleware(req, res, next) {
+function authOptional(req, res, next) {
+  if (config.auth.disabled) return next();
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token) {
+    try { jwt.verify(token, config.auth.jwtSecret); req.authenticated = true; } catch {}
+  }
+  next();
+}
+
+function authRequired(req, res, next) {
   if (config.auth.disabled) return next();
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Token required' });
   try {
     jwt.verify(token, config.auth.jwtSecret);
+    req.authenticated = true;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -22,12 +32,6 @@ function authMiddleware(req, res, next) {
 }
 
 export function setupRoutes(app, sock, io) {
-  app.post('/api/public-login', (req, res) => {
-    if (!config.auth.disabled) return res.status(403).json({ error: 'Public login disabled' });
-    const token = generateToken();
-    res.json({ token });
-  });
-
   app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     if (config.auth.disabled) {
@@ -42,7 +46,7 @@ export function setupRoutes(app, sock, io) {
     }
   });
 
-  app.get('/api/status', authMiddleware, (req, res) => {
+  app.get('/api/status', authOptional, (req, res) => {
     const player = getMusicPlayer();
     const pStatus = player.getStatus();
     const allUsers = models.getAllUsers();
@@ -62,7 +66,7 @@ export function setupRoutes(app, sock, io) {
     });
   });
 
-  app.get('/api/users', authMiddleware, (req, res) => {
+  app.get('/api/users', authOptional, (req, res) => {
     const users = models.getAllUsers().map(u => ({
       jid: u.id,
       name: u.name || u.push_name || '',
@@ -74,13 +78,13 @@ export function setupRoutes(app, sock, io) {
     res.json(users);
   });
 
-  app.post('/api/users/block', authMiddleware, (req, res) => {
+  app.post('/api/users/block', authRequired, (req, res) => {
     const { jid, blocked } = req.body;
     models.setUserBlock(jid, blocked);
     res.json({ success: true });
   });
 
-  app.get('/api/conversations', authMiddleware, (req, res) => {
+  app.get('/api/conversations', authOptional, (req, res) => {
     const users = models.getAllUsers();
     const convs = users.map(u => {
       const last = models.getLastMessage(u.id);
@@ -95,7 +99,7 @@ export function setupRoutes(app, sock, io) {
     res.json(convs);
   });
 
-  app.get('/api/conversations/:jid', authMiddleware, (req, res) => {
+  app.get('/api/conversations/:jid', authOptional, (req, res) => {
     const msgs = models.getHistory(req.params.jid, 100).map(m => ({
       from: m.role === 'assistant' ? 'bot' : m.role === 'user' ? 'them' : 'me',
       text: m.content,
@@ -104,12 +108,12 @@ export function setupRoutes(app, sock, io) {
     res.json(msgs);
   });
 
-  app.delete('/api/conversations/:jid', authMiddleware, (req, res) => {
+  app.delete('/api/conversations/:jid', authRequired, (req, res) => {
     models.clearHistory(req.params.jid);
     res.json({ success: true });
   });
 
-  app.post('/api/send', authMiddleware, async (req, res) => {
+  app.post('/api/send', authRequired, async (req, res) => {
     const { jid, text } = req.body;
     if (!sock) return res.status(503).json({ error: 'WhatsApp not connected' });
     try {
@@ -121,7 +125,7 @@ export function setupRoutes(app, sock, io) {
     }
   });
 
-  app.get('/api/calls', authMiddleware, (req, res) => {
+  app.get('/api/calls', authOptional, (req, res) => {
     const calls = models.getCallLogs(100).map(c => ({
       id: c.id,
       jid: c.user_id,
@@ -137,7 +141,7 @@ export function setupRoutes(app, sock, io) {
     res.json(calls);
   });
 
-  app.get('/api/player', authMiddleware, (req, res) => {
+  app.get('/api/player', authOptional, (req, res) => {
     const player = getMusicPlayer();
     const status = player.getStatus();
     res.json({
@@ -148,7 +152,7 @@ export function setupRoutes(app, sock, io) {
     });
   });
 
-  app.post('/api/player/control', authMiddleware, async (req, res) => {
+  app.post('/api/player/control', authRequired, async (req, res) => {
     const { action } = req.body;
     const player = getMusicPlayer();
     await player.control(action);
@@ -157,7 +161,7 @@ export function setupRoutes(app, sock, io) {
     res.json(status);
   });
 
-  app.post('/api/player/volume', authMiddleware, (req, res) => {
+  app.post('/api/player/volume', authRequired, (req, res) => {
     const { volume } = req.body;
     const player = getMusicPlayer();
     if (player.setVolume) player.setVolume(volume);
@@ -166,7 +170,7 @@ export function setupRoutes(app, sock, io) {
     res.json({ volume });
   });
 
-  app.delete('/api/player/queue', authMiddleware, (req, res) => {
+  app.delete('/api/player/queue', authRequired, (req, res) => {
     const { index } = req.body;
     const player = getMusicPlayer();
     if (player.removeFromQueue) player.removeFromQueue(index);
@@ -175,7 +179,7 @@ export function setupRoutes(app, sock, io) {
     res.json({ success: true });
   });
 
-  app.get('/api/ai/config', authMiddleware, (req, res) => {
+  app.get('/api/ai/config', authOptional, (req, res) => {
     res.json({
       enabled: config.ai.enabled !== false,
       model: config.ai.model || 'gpt-4o-mini',
@@ -184,7 +188,7 @@ export function setupRoutes(app, sock, io) {
     });
   });
 
-  app.put('/api/ai/config', authMiddleware, (req, res) => {
+  app.put('/api/ai/config', authRequired, (req, res) => {
     const { enabled, model, personality, maxResponses } = req.body;
     if (enabled !== undefined) { config.ai.enabled = enabled; models.setSetting('ai_enabled', enabled ? 'true' : 'false'); }
     if (model) { config.ai.model = model; models.setSetting('ai_model', model); }
@@ -193,7 +197,7 @@ export function setupRoutes(app, sock, io) {
     res.json({ success: true });
   });
 
-  app.get('/api/ai/history', authMiddleware, (req, res) => {
+  app.get('/api/ai/history', authOptional, (req, res) => {
     const users = models.getAllUsers();
     const history = [];
     for (const u of users.slice(0, 20)) {
@@ -210,11 +214,11 @@ export function setupRoutes(app, sock, io) {
     res.json(history.reverse().slice(0, 100));
   });
 
-  app.get('/api/logs', authMiddleware, (req, res) => {
+  app.get('/api/logs', authOptional, (req, res) => {
     res.json(models.getLogs(200));
   });
 
-  app.get('/api/refresh-token', authMiddleware, (req, res) => {
+  app.get('/api/refresh-token', authRequired, (req, res) => {
     res.json({ token: generateToken() });
   });
 }
