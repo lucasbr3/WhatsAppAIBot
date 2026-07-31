@@ -44,24 +44,24 @@ export async function startClient(io) {
     browser: ['WhatsApp AI Bot', 'Chrome', '20.0'],
   });
 
-  if (io) {
-    sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
-      if (qr) {
-        io.emit('whatsapp:qr', qr);
-        logger.info('QR code generated');
-      }
-      if (connection === 'open') {
-        io.emit('whatsapp:status', 'connected');
-        logger.info(`WhatsApp connected: ${sock.user?.id}`);
-      }
-      if (connection === 'close') {
-        const reason = lastDisconnect?.error?.output?.statusCode;
-        io.emit('whatsapp:status', 'disconnected');
-        logger.warn(`WhatsApp disconnected, reason: ${reason}. Reconnecting...`);
-        setTimeout(() => startClient(io), 5000);
-      }
-    });
-  } else {
+  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
+    if (qr) {
+      sock.qr = qr;
+      if (io) io.to('authenticated').emit('status:update', { qr });
+      logger.info('QR code generated');
+    }
+    if (connection === 'open') {
+      sock.qr = null;
+      if (io) io.to('authenticated').emit('status:update', { whatsappStatus: 'connected' });
+      logger.info(`WhatsApp connected: ${sock.user?.id}`);
+    }
+    if (connection === 'close') {
+      const reason = lastDisconnect?.error?.output?.statusCode;
+      if (io) io.to('authenticated').emit('status:update', { whatsappStatus: 'disconnected' });
+      logger.warn(`WhatsApp disconnected, reason: ${reason}. Reconnecting...`);
+      setTimeout(() => startClient(io), 5000);
+    }
+  }); else {
     sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
       if (connection === 'open') logger.info(`WhatsApp connected: ${sock.user?.id}`);
       if (connection === 'close') {
