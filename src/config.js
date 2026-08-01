@@ -16,8 +16,11 @@ export default {
   ai: {
     apiKey: process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || '',
     model: process.env.OPENAI_MODEL || process.env.GROQ_MODEL || 'gpt-4o-mini',
-    baseURL: process.env.OPENAI_BASE_URL || process.env.GROQ_BASE_URL || 'https://api.openai.com/v1',
-    sttModel: process.env.STT_MODEL || 'whisper-1',
+    baseURL:
+      process.env.OPENAI_BASE_URL ||
+      process.env.GROQ_BASE_URL ||
+      (process.env.GROQ_API_KEY ? 'https://api.groq.com/openai/v1' : 'https://api.openai.com/v1'),
+    sttModel: process.env.STT_MODEL || (process.env.GROQ_API_KEY ? 'whisper-large-v3' : 'whisper-1'),
     maxTokens: parseInt(process.env.AI_MAX_TOKENS || '1024'),
     temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7'),
   },
