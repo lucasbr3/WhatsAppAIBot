@@ -1,6 +1,6 @@
 import logger from '../logger.js';
 import models from '../database/models.js';
-import { processCommand } from './commands.js';
+import { processCommand, handleTikTokSelection } from './commands.js';
 import { getAIResponse } from '../ai/openai.js';
 import { getMusicPlayer } from '../music/player.js';
 import config from '../config.js';
@@ -10,6 +10,9 @@ import { transcribeAudio } from '../voice/stt.js';
 import { synthesizeSpeech } from '../voice/tts.js';
 
 const cooldowns = new Map();
+
+const PLAYER_CONTROLS = ['!pause', '/pause', '!stop', '/stop', '!skip', '/skip', '!next', '/next', '!resume', '/resume', '!volume', '/volume'];
+const QUEUE_CMDS = ['!queue', '/queue', '!fila', '/fila'];
 
 function isSpam(userId) {
   const now = Date.now();
@@ -46,22 +49,27 @@ export async function handleMessage(sock, msg, io) {
 
     if (io) io.emit('whatsapp:message', { from: userId, name: pushName, text, timestamp: new Date() });
 
-    const cmd = getCommand(text);
-
-    if (cmd && processCommand[sock]) {
-      const handled = await processCommand[sock](sock, jid, cmd.command, cmd.args);
+    if (/^\d{1,2}$/.test(text.trim())) {
+      const handled = await handleTikTokSelection(sock, jid, text.trim());
       if (handled) return;
     }
 
-    if (text.toLowerCase().startsWith('!play ') || text.toLowerCase().startsWith('/play ')) {
-      const query = text.replace(/^[!\/]play\s+/i, '');
+    const cmd = getCommand(text);
+
+    if (cmd && processCommand[cmd.command]) {
+      const handled = await processCommand[cmd.command](sock, jid, cmd.args);
+      if (handled) return;
+    }
+
+    if (text.toLowerCase().startsWith('!play ')) {
+      const query = text.replace(/^!play\s+/i, '');
       const player = getMusicPlayer();
       await player.addToQueue(query, userId, io);
       await sock.sendMessage(jid, { text: `⏳ Buscando: ${query}...` });
       return;
     }
 
-    if (['!pause', '/pause', '!stop', '/stop', '!skip', '/skip', '!next', '/next', '!resume', '/resume', '!volume', '/volume'].includes(text.toLowerCase().split(' ')[0])) {
+    if (PLAYER_CONTROLS.includes(text.toLowerCase().split(' ')[0])) {
       const player = getMusicPlayer();
       const action = text.toLowerCase().split(' ')[0].replace(/[!\/]/, '');
       const result = await player.control(action, text.split(' ')[1]);
@@ -69,7 +77,7 @@ export async function handleMessage(sock, msg, io) {
       return;
     }
 
-    if (['!queue', '/queue', '!fila', '/fila'].includes(text.toLowerCase().split(' ')[0])) {
+    if (QUEUE_CMDS.includes(text.toLowerCase().split(' ')[0])) {
       const player = getMusicPlayer();
       const queue = player.getQueueList();
       if (queue.length === 0) {
@@ -81,7 +89,29 @@ export async function handleMessage(sock, msg, io) {
       return;
     }
 
-    const aiResponse = await getAIResponse(userId, text);
+    if (!cmd) {
+      await sock.sendMessage(jid, { text: '⚠️ Use *!* antes do comando. Ex: *!help* para ver os comandos disponíveis.' });
+      return;
+    }
+
+    if (cmd.command === 'audio' && cmd.args) {
+      await sock.sendPresenceUpdate('recording', jid);
+      const aiResponse = await getAIResponse(userId, cmd.args);
+      models.addMessage(userId, 'assistant', aiResponse);
+
+      const audioBuffer = await synthesizeSpeech(aiResponse);
+      if (audioBuffer) {
+        await sendAudio(jid, audioBuffer);
+      } else {
+        await sock.sendMessage(jid, { text: aiResponse });
+      }
+
+      if (io) io.emit('whatsapp:message', { from: 'bot', name: '🤖 IA', text: aiResponse, timestamp: new Date() });
+      if (io) io.emit('whatsapp:audio', { from: 'bot', userId, timestamp: new Date() });
+      return;
+    }
+
+    const aiResponse = await getAIResponse(userId, cmd.args || text);
     await sock.sendMessage(jid, { text: aiResponse });
     models.addMessage(userId, 'assistant', aiResponse);
 
