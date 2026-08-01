@@ -22,7 +22,7 @@ export async function transcribeAudio(audioBuffer) {
 
     const transcription = await openai.audio.transcriptions.create({
       file: fs.createReadStream(tmpFile),
-      model: 'whisper-1',
+      model: config.ai.sttModel || 'whisper-1',
       language: 'pt',
       response_format: 'text',
     });

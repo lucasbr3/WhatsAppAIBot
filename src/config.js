@@ -14,9 +14,10 @@ export default {
     sessionPath: process.env.SESSION_PATH || './data/session',
   },
   ai: {
-    apiKey: process.env.OPENAI_API_KEY || '',
-    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+    apiKey: process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || '',
+    model: process.env.OPENAI_MODEL || process.env.GROQ_MODEL || 'gpt-4o-mini',
+    baseURL: process.env.OPENAI_BASE_URL || process.env.GROQ_BASE_URL || 'https://api.openai.com/v1',
+    sttModel: process.env.STT_MODEL || 'whisper-1',
     maxTokens: parseInt(process.env.AI_MAX_TOKENS || '1024'),
     temperature: parseFloat(process.env.AI_TEMPERATURE || '0.7'),
   },
