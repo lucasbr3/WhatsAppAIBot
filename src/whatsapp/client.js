@@ -114,6 +114,6 @@ export async function sendAudio(jid, buffer) {
   return sock.sendMessage(jid, {
     audio: buffer,
     mimetype: 'audio/mpeg',
-    ptt: true,
+    fileName: 'resposta.mp3',
   });
 }
