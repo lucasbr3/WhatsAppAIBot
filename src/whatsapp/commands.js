@@ -4,6 +4,7 @@ import models from '../database/models.js';
 import { searchTikTok, downloadTikTokMedia, formatNumber, buildResultsText } from '../tiktok/search.js';
 import { searchSpotify } from '../spotify/search.js';
 import { cidade as handleCidade } from '../cidade/search.js';
+import { isMetaEnabled } from '../voice/metaCalls.js';
 
 const _pending = new Map();
 
@@ -37,8 +38,8 @@ export const processCommand = {
 !pergunta <texto> - Conversar com a IA
 !audio <texto> - Resposta da IA em áudio
 
-📞 *Chamadas:*
-Ligue para o número para falar com a IA
+📞 *Chamadas (Meta API):*
+Ligue para o número para falar com a IA${isMetaEnabled() ? '' : ' (não configurado)'}
 
 📊 *Info:*
 !ping - Testar conexão

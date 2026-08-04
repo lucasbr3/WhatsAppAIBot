@@ -1,9 +1,17 @@
 import config from '../config.js';
+import logger from '../logger.js';
 import models from '../database/models.js';
 import { getMusicPlayer } from '../music/player.js';
 import { getClient, disconnectClient } from '../whatsapp/client.js';
+import { handleMetaWebhook, isMetaEnabled, getActiveMetaCalls } from '../voice/metaCalls.js';
 
 export function setupRoutes(app, _sock, io) {
+  if (isMetaEnabled()) {
+    app.get('/webhook/meta', handleMetaWebhook);
+    app.post('/webhook/meta', handleMetaWebhook);
+    logger.info('Meta calling webhook registered at /webhook/meta');
+  }
+
   app.get('/api/status', (req, res) => {
     const s = getClient();
     const player = getMusicPlayer();
@@ -86,7 +94,7 @@ export function setupRoutes(app, _sock, io) {
   });
 
   app.get('/api/calls', (req, res) => {
-    const calls = models.getCallLogs(100).map(c => ({
+    const calls = models.getCallLogs(100).map((c) => ({
       id: c.id,
       jid: c.user_id,
       from: c.user_id,
@@ -98,7 +106,7 @@ export function setupRoutes(app, _sock, io) {
       aiResponse: c.ai_response || null,
       audioUrl: c.audio_url || null,
     }));
-    res.json(calls);
+    res.json({ calls, active: getActiveMetaCalls() });
   });
 
   app.get('/api/player', (req, res) => {

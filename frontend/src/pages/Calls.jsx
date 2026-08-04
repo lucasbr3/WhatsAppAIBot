@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, PhoneIncoming, Clock, Headphones } from 'lucide-react';
+import { Phone, PhoneIncoming, Clock, Headphones, Activity } from 'lucide-react';
 import { api } from '../api/client';
 
 export default function Calls() {
   const [calls, setCalls] = useState([]);
+  const [active, setActive] = useState([]);
   const [selected, setSelected] = useState(null);
 
   useEffect(() => { fetchCalls(); }, []);
@@ -11,7 +12,12 @@ export default function Calls() {
   async function fetchCalls() {
     try {
       const res = await api('/calls');
-      setCalls(Array.isArray(res) ? res : []);
+      if (Array.isArray(res)) {
+        setCalls(res);
+      } else {
+        setCalls(res?.calls || []);
+        setActive(res?.active || []);
+      }
     } catch {}
   }
 
@@ -26,6 +32,23 @@ export default function Calls() {
     <div>
       <h1 style={{ marginBottom: 8 }}>Chamadas</h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '.9rem' }}>Histórico de chamadas recebidas</p>
+
+      {active.length > 0 && (
+        <div className="section" style={{ marginBottom: 20, padding: 16 }}>
+          <div className="section-header" style={{ padding: 0, border: 'none' }}>
+            <h2><Activity size={15} /> Chamadas Ativas</h2>
+            <span style={{ color: 'var(--green)', fontSize: '.85rem' }}>{active.length} em andamento</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+            {active.map((c) => (
+              <div key={c.callId} className="config-row" style={{ margin: 0 }}>
+                <span className="config-label">{c.userId}</span>
+                <span className="config-value" style={{ color: 'var(--green)' }}>{c.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="section" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 0, overflow: 'hidden' }}>
         <div style={{ borderRight: '1px solid var(--border-color)' }}>

@@ -30,6 +30,13 @@ export default {
     ttsVoice: process.env.TTS_VOICE || 'alloy',
     callAutoAnswer: process.env.CALL_AUTO_ANSWER !== 'false',
   },
+  meta: {
+    accessToken: process.env.META_ACCESS_TOKEN || '',
+    phoneNumberId: process.env.META_PHONE_NUMBER_ID || '',
+    verifyToken: process.env.META_VERIFY_TOKEN || 'whiskeyverify123',
+    graphVersion: process.env.META_GRAPH_VERSION || 'v21.0',
+    enabled: !!(process.env.META_ACCESS_TOKEN && process.env.META_PHONE_NUMBER_ID),
+  },
   database: {
     url: process.env.DATABASE_URL || './data/bot.db',
   },
