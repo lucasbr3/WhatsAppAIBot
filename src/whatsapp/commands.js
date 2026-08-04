@@ -3,6 +3,7 @@ import { getMusicPlayer } from '../music/player.js';
 import models from '../database/models.js';
 import { searchTikTok, downloadTikTokMedia, formatNumber, buildResultsText } from '../tiktok/search.js';
 import { searchSpotify } from '../spotify/search.js';
+import { cidade as handleCidade } from '../cidade/search.js';
 
 const _pending = new Map();
 
@@ -28,6 +29,9 @@ export const processCommand = {
 !tiktok <termo> - Buscar vídeos
 !tiktokmp3 <termo> - Baixar áudio do TikTok
 !musica <nome> - Buscar no Spotify e baixar
+
+🏙️ *Cidades:*
+!cidade <nome> - Info sobre a cidade (clima, população, etc)
 
 🤖 *IA:*
 !pergunta <texto> - Conversar com a IA
@@ -163,6 +167,11 @@ Ligue para o número para falar com a IA
       logger.error(`Musica command error: ${e.message}`);
       await sock.sendMessage(jid, { text: `❌ Erro: ${e.message}` });
     }
+    return true;
+  },
+
+  async cidade(sock, jid, args) {
+    await handleCidade(sock, jid, args);
     return true;
   },
 };
